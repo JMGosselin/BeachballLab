@@ -1,0 +1,6 @@
+# Downloaded and derived data (re-created by the scripts)
+data/
+
+__pycache__/
+*.pyc
+*.txt.bak

@@ -1,0 +1,231 @@
+# =====================================================================
+# BeachballLab: master configuration file
+# =====================================================================
+#
+# Every script in this tutorial reads THIS file, e.g.
+#
+#     python 01_search_events.py           --config config.yaml
+#     python 02_download_waveforms.py      --config config.yaml
+#     python 03_pick_polarities.py         --config config.yaml
+#     python 04_invert_focal_mechanism.py  --config config.yaml
+#     python 05_postprocess.py             --config config.yaml
+#
+# Relative paths in this file are interpreted relative to the folder that
+# contains this config file (not the folder you run the scripts from).
+#
+# Worked example: M4.5, 2002-08-17 16:06:27 UTC, 39 km ESE of Merritt, BC
+#                 49.960 N, 120.290 W, depth 10 km (USGS id usp000ba34)
+# ---------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------
+# Project / output locations
+# ---------------------------------------------------------------------
+project:
+  name: merritt_2002
+  # All downloaded and derived data are written below this folder.
+  data_dir: ./data
+
+
+# ---------------------------------------------------------------------
+# Step 1: event search (01_search_events.py)
+# ---------------------------------------------------------------------
+event_search:
+  # FDSN event web service. Either an ObsPy shortcut name
+  # (USGS, ISC, EMSC, EARTHSCOPE, ...) or a full base URL.
+  client: USGS
+
+  # Time window (UTC, ISO format).
+  starttime: "2002-08-17T00:00:00"
+  endtime:   "2002-08-18T00:00:00"
+
+  # Search region. Use either a circle or a box:
+  #   region_type: circle  -> uses center_lat, center_lon, max_radius_km
+  #   region_type: box     -> uses min/max_latitude and min/max_longitude
+  region_type: circle
+  center_lat: 49.96
+  center_lon: -120.29
+  max_radius_km: 100.0
+
+  min_latitude: 49.0
+  max_latitude: 51.0
+  min_longitude: -121.5
+  max_longitude: -119.0
+
+  # Magnitude and depth limits (null = no limit).
+  min_magnitude: 4.0
+  max_magnitude: null
+  min_depth_km: null
+  max_depth_km: null
+
+  # Maximum number of events to keep (largest first is NOT implied;
+  # events are sorted by time). null = keep all.
+  max_events: null
+
+
+# ---------------------------------------------------------------------
+# Step 2: station selection, waveform download, pre-processing
+#         (02_download_waveforms.py)
+# ---------------------------------------------------------------------
+stations:
+  # FDSN data centres to query, in order of preference. ObsPy shortcut
+  # names (EARTHSCOPE, NCEDC, SCEDC, GEOFON, ...) or full URLs.
+  # Natural Resources Canada (NRCan) holds Canadian (CN) network data that
+  # is not all available from EarthScope.
+  providers:
+    - https://earthquakescanada.nrcan.gc.ca
+    - EARTHSCOPE
+
+  # Epicentral distance range of stations to download (km).
+  min_radius_km: 0.0
+  max_radius_km: 300.0
+
+  # SEED code filters ("*" = anything). Comma-separated lists allowed.
+  network: "*"
+  station: "*"
+
+  # For each station only the FIRST matching channel group in this list
+  # is downloaded (e.g. HH if available, otherwise BH, ...).
+  # Add "HN[ZNE12]" to also use strong-motion accelerometers.
+  channel_priorities: ["HH[ZNE12]", "BH[ZNE12]", "EH[ZNE12]", "SH[ZNE12]"]
+  location_priorities: ["", "00", "10", "01"]
+
+  # Time-out for each request to a data centre (seconds). Some servers
+  # are slow; increase this if requests time out.
+  timeout_s: 180
+
+  # Minimum pause between requests to the same data centre (seconds).
+  # NRCan refuses more than one request per 5 seconds.
+  request_interval_s: 5
+
+waveforms:
+  # Time window around the event origin time (seconds).
+  time_before_origin: 60.0
+  time_after_origin: 240.0
+
+  # Reject channels with data gaps or that cover less than this fraction
+  # of the requested window.
+  reject_channels_with_gaps: true
+  minimum_length: 0.9
+
+  # Re-download even if raw files already exist locally.
+  overwrite: false
+
+preprocessing:
+  # Remove the instrument response. This is important for polarities:
+  # some instruments have a NEGATIVE sensitivity (inverted polarity),
+  # which is only corrected when the response is removed.
+  remove_response: true
+  output: VEL               # DISP, VEL or ACC
+  water_level: 60.0
+
+  # Pre-filter applied during response removal, [f1, f2, f3, f4] in Hz.
+  # "auto" uses [0.01, 0.02, 0.4*fs, 0.45*fs] for each trace.
+  pre_filt: auto
+
+  # Rotate 1/2/3 components into Z/N/E using the station metadata.
+  rotate_to_zne: true
+
+  # Optional band-pass applied to the SAVED data, [fmin, fmax] in Hz or
+  # null. Usually leave this null and filter interactively in Snuffler,
+  # because strong filtering can change the apparent first motion.
+  bandpass: null
+
+  # Optional resampling rate (Hz) or null.
+  resample_hz: null
+
+
+# ---------------------------------------------------------------------
+# Velocity model (used for the predicted arrival times in Snuffler,
+# step 3, and for the take-off angles in the inversion, step 4)
+# ---------------------------------------------------------------------
+velocity_model:
+  # Either the name of a model built into Pyrocko's cake
+  # (e.g. ak135-f-continental.m, prem-no-ocean.m) or a path to a .nd file.
+  model: ak135-f-continental.m
+
+
+# ---------------------------------------------------------------------
+# Step 3: interactive polarity picking in Snuffler (03_pick_polarities.py)
+# ---------------------------------------------------------------------
+picking:
+  # Which processed components to load into Snuffler. "Z" is enough for
+  # P polarities; use "ZNE" to also see the horizontals.
+  components: Z
+
+  # Show predicted arrival markers (computed with the velocity model).
+  # Cake phase definitions; the earliest arrival of each group is shown.
+  # Labels end in "_pred" and are ignored when reading picks later.
+  predicted_phases:
+    P: "P,p"
+    S: "S,s"
+
+  # Number of traces visible at once in Snuffler.
+  ntracks: 12
+
+  # Sort traces by epicentral distance when Snuffler opens.
+  sort_by_distance: true
+
+  # Phase names (as assigned with F1..F5 in Snuffler) that are treated as
+  # P first-motion picks by later steps. F1 = "P" by default.
+  polarity_phases: [P]
+
+  # Pick confidence is recorded with Snuffler's marker "kind" (number
+  # keys while a marker is selected). These values are used later to
+  # set the polarity uncertainty in the inversion. Kinds not listed here
+  # get a confidence of 0.5 (with a warning).
+  confidence_by_kind:
+    0: 0.80   # default kind (not explicitly set)
+    1: 0.95   # clear, impulsive onset
+    2: 0.75   # reasonably clear
+    3: 0.55   # emergent / uncertain
+
+
+# ---------------------------------------------------------------------
+# Step 4: focal-mechanism inversion (04_invert_focal_mechanism.py)
+# ---------------------------------------------------------------------
+inversion:
+  # Events with fewer usable (U/D) polarities than this are skipped.
+  min_polarities: 8
+
+  # Phases used to compute take-off angles with the velocity model
+  # (cake phase definitions; the earliest arrival is used, matching the
+  # first motion you picked).
+  takeoff_phases: "P,p"
+
+  # Strike/dip/rake grid (degrees). Dip is sampled uniformly in cos(dip).
+  strike_step: 5.0
+  rake_step: 5.0
+  dip_min: 5.0
+  dip_max: 90.0
+  n_dips: 20
+
+  # Polarity uncertainty: sigma = sigma_min for confidence 1 and
+  # sigma_max for confidence 0 (confidence comes from picking.confidence_by_kind).
+  sigma_min: 0.1
+  sigma_max: 0.9
+
+  # Probability that any polarity is simply wrong (e.g. reversed station).
+  omega: 0.02
+
+  # Solution drawn as nodal planes and reported as preferred:
+  #   centroid -> posterior-mean mechanism (more stable)
+  #   best     -> grid point with the highest posterior
+  preferred_solution: centroid
+
+plotting:
+  # Number of mechanisms drawn from the posterior for the fuzzy beachball.
+  n_posterior_draws: 500
+  fuzzy_grid_resolution: 300
+  show_station_labels: true
+  random_seed: 1234
+
+
+# ---------------------------------------------------------------------
+# Step 5: post-processing (05_postprocess.py)
+# ---------------------------------------------------------------------
+postprocessing:
+  # Number of mechanisms drawn from the posterior to estimate the
+  # uncertainty (rotation angles, axis scatter).
+  n_samples: 2000
+  random_seed: 1234
