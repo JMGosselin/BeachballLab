@@ -435,6 +435,50 @@ for the format.
 
 ---
 
+## Recommendations
+
+### For students
+
+* **Pick first, then compare.** Make your own picks before you look at
+  `examples/`. Compare the two sets of polarities station by station, then
+  compare the two mechanisms.
+* **Test how robust the solution is.** Remove one station at a time,
+  especially PNT or HOPB, the only two off the Pn ring. Watch how much the
+  mechanism and the Kagan-angle spread change.
+* **Try different source depths.** Re-run steps 4 and 5 with the depth at
+  5, 10 and 15 km. Which stations move on the focal sphere, and does the
+  faulting style change?
+* **Try other events.** Run the workflow on another event in the region.
+  See whether the faulting style matches this one and fits what you would
+  expect for the regional tectonics.
+* **Compare with a published solution.** Look for a moment tensor or
+  focal mechanism for the same event in a catalogue, if one exists.
+  Explain any difference.
+
+### Ideas for improving the lab
+
+* **Interactive beachball fitter.** Sliders for strike, dip and rake that
+  redraw the beachball over the observed polarities, so students fit a
+  mechanism by hand before running the inversion.
+* **Basemap on the station map.** Coastlines, borders and topography behind
+  the stations and the event, for example with Cartopy or PyGMT.
+* **Run-all script.** A script that runs steps 1, 2, 4 and 5 for every
+  event in the catalogue, skipping the interactive picking.
+* **Take-off angle uncertainty.** Sample the source depth and the velocity
+  model inside the inversion, rather than treating the take-off angles as
+  exact.
+* **Regional velocity model.** A 1-D model for southern British Columbia in
+  place of the global ak135 model.
+* **S/P amplitude ratios.** Add amplitude ratios as extra data, as HASH
+  does, to help constrain mechanisms with few or clustered polarities.
+* **Station polarity checks.** Flag stations whose polarity disagrees with
+  the solution across many events. This would catch reversed stations like
+  the one GOBB may be.
+* **Jupyter notebook version.** A notebook that steps through the same
+  workflow for classroom demos.
+
+---
+
 ## Licence
 
 BeachballLab is released under the GNU General Public License v3.0 (see
